@@ -11,14 +11,17 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Enable auto-merge with retry
+      - name: Merge PR and forcibly delete head branch
         run: |
-          for i in {1..5}; do
-            gh pr merge "$PR_URL" --auto --merge --delete-branch && exit 0
-            echo "Attempt $i failed due to API error/delay. Retrying in 5 seconds..."
-            sleep 5
-          done
-          exit 1
+          # Direct merge (bypasses --auto queue issue)
+          gh pr merge "$PR_URL" --merge
+
+          # Brief pause for GitHub to register the merged state
+          sleep 2
+
+          # Forcefully delete the remote branch via API
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$BRANCH_NAME"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
